@@ -85,7 +85,8 @@ export default function ChatTester({ clinicId }: { clinicId: string }) {
       ) : null}
 
       <p className="note">
-        Tip: send BOOK, then reply 1 to choose a service, then 1 to pick a slot.
+        Simulator only: replies appear here, nothing is sent to WhatsApp. Tip: send BOOK,
+        then 1 to choose a service, then 1 to pick a slot.
       </p>
     </div>
   );

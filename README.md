@@ -35,7 +35,7 @@ job queue.
 | `lib/schema.ts` | Partial unique index that makes double booking impossible at the DB level |
 | `lib/queue.ts`, `lib/worker.ts` | DB-backed jobs with exponential backoff; CRM outbox to HighLevel |
 | `lib/crm/highlevel.ts` | HighLevel API v2 client behind a small interface |
-| `tests/` | 23 Vitest tests: double-booking race, DST/timezone edges, webhook idempotency, Graph API delivery, CRM contract |
+| `tests/` | 28 Vitest tests: double-booking race, DST/timezone edges, webhook idempotency, WhatsApp delivery (Meta + Twilio), CRM contract |
 
 ![Home](docs/home.png)
 
@@ -59,12 +59,14 @@ not send anything to WhatsApp** — the demo renders the assistant's replies in 
 ## WhatsApp delivery
 
 Replies are written to the local ledger by the agent, then delivered by a queued
-`whatsapp_send` job calling the Graph API (`POST /{phone-number-id}/messages`). Delivery is
-a separate job from the agent run, so a failed send retries with backoff instead of
-re-running the assistant and duplicating replies. Demo-origin jobs are tagged
-`source: "demo"` and are never sent, and demo bookings do not schedule reminder sends.
+`whatsapp_send` job. Delivery is a separate job from the agent run, so a failed send
+retries with backoff instead of re-running the assistant and duplicating replies.
+Demo-origin jobs are tagged `source: "demo"` and are never sent, and demo bookings do not
+schedule reminder sends.
 
-To send real messages you need a Meta WhatsApp Business account:
+Two providers are supported through `WHATSAPP_PROVIDER`:
+
+### Option A: Meta Cloud API (`WHATSAPP_PROVIDER=meta`)
 
 1. Create a Meta app with the WhatsApp product and register a business phone number.
 2. Set `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN` and
@@ -72,12 +74,32 @@ To send real messages you need a Meta WhatsApp Business account:
 3. Point the app's webhook at `https://<your-host>/api/webhooks/whatsapp` and subscribe to
    the `messages` field.
 
-Meta only allows free-form text inside the 24-hour customer service window, so the patient
-must message the business number first. Outside that window, Meta requires an approved
-message template. Nothing in this repo can bypass that rule.
+Meta's setup asks for a payment method, and free-form text is only allowed inside the
+24-hour customer service window: the patient must message the business number first.
+Outside that window Meta requires an approved message template. Nothing in this repo can
+bypass that rule.
 
-Without the WhatsApp env vars the app stays in local/demo mode: messages are still stored
-and shown in the dashboard, and sends are skipped.
+### Option B: Twilio WhatsApp Sandbox (`WHATSAPP_PROVIDER=twilio`, no card)
+
+Twilio's sandbox is the card-free way to get a real message on a phone:
+
+1. Create a trial account at <https://www.twilio.com/try-twilio> and open
+   Messaging → Try it out → Send a WhatsApp message.
+2. From your own phone, send `join <sandbox-code>` to the sandbox number
+   (+1 415 523 8886 for the shared sandbox).
+3. In the sandbox settings, set "When a message comes in" to
+   `https://<your-host>/api/webhooks/twilio` (HTTP POST).
+4. Set `WHATSAPP_PROVIDER=twilio`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`,
+   `TWILIO_WHATSAPP_FROM=whatsapp:+14155238886` and `TWILIO_CLINIC_ID=c-aurora`
+   (the sandbox reuses one number, so it cannot identify a clinic by itself).
+
+Then message the sandbox number. The assistant replies on WhatsApp through the same agent,
+booking, and outbox path used by the Meta integration. Only numbers that joined the sandbox
+can receive messages, and the 24-hour window still applies. Twilio webhooks are verified
+with `X-Twilio-Signature` (HMAC-SHA1 over the URL and sorted form fields).
+
+Without any provider credentials the app stays in local/demo mode: messages are still
+stored and shown in the dashboard, and sends are skipped.
 
 ## Architecture
 
@@ -97,7 +119,7 @@ POST /api/webhooks/whatsapp
         |
         +--> reminder jobs (24h / 2h before the appointment)
         |
-        +--> whatsapp_send jobs --> Graph API (WhatsApp)
+        +--> whatsapp_send jobs --> WhatsApp (Meta Graph API or Twilio)
         |
         +--> CRM outbox jobs --> HighLevel API v2
                                   POST /contacts/upsert
@@ -202,16 +224,16 @@ Covered:
 
 ### Verification
 
-`npm test` (23 tests), `tsc --noEmit`, and a local end-to-end run through
+`npm test` (28 tests), `tsc --noEmit`, and a local end-to-end run through
 `/api/demo/simulate` are green. The HighLevel client is tested against a local stub server
 that asserts request shape, and the full app has been run against `tools/ghl-emulator.mjs`
-(contacts and appointments receive external ids). Outbound WhatsApp delivery is tested
-against a stubbed Graph API: webhook replies are sent, demo replies are not, and local mode
-skips the call. The same booking flow was run against the hosted demo to confirm it
-survives requests landing on different serverless instances. No integration has been
-exercised against a live HighLevel account, the live WhatsApp Cloud API, or a real phone
-number. Treat those as "integrated, unproven in production" until a test account confirms
-them.
+(contacts and appointments receive external ids). WhatsApp delivery is tested against a
+stubbed API: Meta and Twilio request shapes, Twilio signature verification, webhook field
+mapping, reminder delivery, and the rule that demo traffic is never sent. The same booking
+flow was run against the hosted demo to confirm it survives requests landing on different
+serverless instances. No integration has been exercised against a live HighLevel account, a
+live WhatsApp provider, or a real phone number. Treat those as "integrated, unproven in
+production" until a test account confirms them.
 
 ## Production notes
 

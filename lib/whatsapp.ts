@@ -130,18 +130,58 @@ export function ingestInbound(
   return { duplicate: false, conversationId: conversation.id };
 }
 
+export type WhatsAppProvider = "meta" | "twilio";
+
+export function whatsappProvider(): WhatsAppProvider {
+  return process.env.WHATSAPP_PROVIDER === "twilio" ? "twilio" : "meta";
+}
+
 export function isWhatsAppConfigured(): boolean {
+  if (whatsappProvider() === "twilio") {
+    return Boolean(
+      process.env.TWILIO_ACCOUNT_SID &&
+        process.env.TWILIO_AUTH_TOKEN &&
+        process.env.TWILIO_WHATSAPP_FROM,
+    );
+  }
   return Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID);
 }
 
-/** The Graph API expects the recipient as country code + number, digits only. */
+/**
+ * Meta expects the recipient as country code + number, digits only.
+ * Use `WHATSAPP_PROVIDER=twilio` to send through Twilio's WhatsApp API instead,
+ * which is the only card-free way to get a real message on a phone.
+ */
 export async function sendText(to: string, text: string): Promise<boolean> {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
   const recipient = digits(to);
-  if (!token || !phoneNumberId || !recipient) return false;
+  if (!recipient) return false;
 
   try {
+    if (whatsappProvider() === "twilio") {
+      const sid = process.env.TWILIO_ACCOUNT_SID;
+      const token = process.env.TWILIO_AUTH_TOKEN;
+      const from = process.env.TWILIO_WHATSAPP_FROM;
+      if (!sid || !token || !from) return false;
+
+      const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}`,
+        },
+        body: new URLSearchParams({
+          From: `whatsapp:+${digits(from)}`,
+          To: `whatsapp:+${recipient}`,
+          Body: text,
+        }).toString(),
+      });
+      return response.ok;
+    }
+
+    const token = process.env.WHATSAPP_ACCESS_TOKEN;
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+    if (!token || !phoneNumberId) return false;
+
     const response = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -156,4 +196,38 @@ export async function sendText(to: string, text: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** Twilio signs the exact webhook URL plus the POST fields in key order. */
+export function verifyTwilioSignature(
+  url: string,
+  params: URLSearchParams,
+  signature: string | null,
+  authToken: string | undefined,
+): boolean {
+  if (!authToken || !signature) return false;
+  const sorted = [...params.entries()].sort(([a], [b]) => a.localeCompare(b));
+  let payload = url;
+  for (const [key, value] of sorted) payload += key + value;
+  const expected = createHmac("sha1", authToken).update(payload).digest("base64");
+  const a = Buffer.from(expected, "utf8");
+  const b = Buffer.from(signature, "utf8");
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
+export function parseTwilioWebhook(params: URLSearchParams): IncomingMessage[] {
+  const body = params.get("Body");
+  const from = params.get("From");
+  const sid = params.get("MessageSid");
+  if (!body || !from || !sid) return [];
+  if (!from.startsWith("whatsapp:")) return [];
+  return [
+    {
+      waMessageId: sid,
+      from: digits(from),
+      text: body,
+      displayPhoneNumber: params.get("To") ?? "",
+    },
+  ];
 }
