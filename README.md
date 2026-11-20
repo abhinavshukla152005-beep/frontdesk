@@ -13,11 +13,29 @@ covered by tests; neither has been run against live credentials yet (see "Verifi
 
 ## Live demo
 
-- App: <https://frontdesk-abhinav-shukla1.vercel.app>
+- App: <https://frontdesk-clinic.vercel.app>
 - Source: <https://github.com/abhinavshukla152005-beep/frontdesk>
 
-Open a clinic from the home page, then use the "Try the assistant" box: send `Hello`,
-`Book`, `1`, `1`. That is the same ingest path the WhatsApp webhook uses.
+### Try it in 60 seconds
+
+1. Open <https://frontdesk-clinic.vercel.app> and pick **Aurora Dental Studio**.
+2. In the "Try the assistant" box send `Hello`, then `Book`, then `1`, then `1`.
+3. You get a booking confirmation with a real slot from the availability grid. Send
+   `CANCEL` to cancel it, or `What are your prices?` / `What are your hours?` for the FAQ path.
+
+That uses the same ingest path as the WhatsApp webhook, including message dedupe and the
+job queue.
+
+### Where the engineering is
+
+| File | What it shows |
+| --- | --- |
+| `lib/agent.ts` | Conversation state machine: FAQ, service choice, slot choice, cancel, hand-off |
+| `lib/booking.ts` | Availability from working hours, lead time and buffer; booking and cancellation |
+| `lib/schema.ts` | Partial unique index that makes double booking impossible at the DB level |
+| `lib/queue.ts`, `lib/worker.ts` | DB-backed jobs with exponential backoff; CRM outbox to HighLevel |
+| `lib/crm/highlevel.ts` | HighLevel API v2 client behind a small interface |
+| `tests/` | 19 Vitest tests: double-booking race, DST/timezone edges, webhook idempotency, CRM contract |
 
 ![Home](docs/home.png)
 
