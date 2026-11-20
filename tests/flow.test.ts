@@ -96,6 +96,25 @@ describe("assistant", () => {
     }
   });
 
+  it("resumes a booking when only the conversation state is carried", async () => {
+    const first = createTestDb();
+    await say(first, "Book", "r1");
+    const carried = JSON.parse(
+      (first.prepare("SELECT state FROM conversations LIMIT 1").get() as { state: string }).state,
+    ) as unknown;
+
+    // A fresh database stands in for a serverless instance that never saw the
+    // first message; the demo endpoint replays the state the client carries.
+    const second = createTestDb();
+    ingestInbound(second, CLINIC_ID, { waMessageId: "r2", from: PHONE, text: "1", displayPhoneNumber: "" });
+    second
+      .prepare("UPDATE conversations SET state = ? WHERE patient_phone = ?")
+      .run(JSON.stringify(carried), PHONE);
+    await drain(second);
+
+    expect(lastReply(second)).toContain("Next open slots");
+  });
+
   it("cancels the next appointment", async () => {
     const db = createTestDb();
     await say(db, "Book", "w1");

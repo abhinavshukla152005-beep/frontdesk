@@ -7,7 +7,7 @@ import { drain } from "@/lib/worker";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type Body = { clinicId?: string; phone?: string; text?: string };
+type Body = { clinicId?: string; phone?: string; text?: string; state?: unknown };
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as Body | null;
@@ -29,11 +29,22 @@ export async function POST(request: Request) {
     startedAt,
   );
 
+  const conversation = db
+    .prepare("SELECT id, state FROM conversations WHERE clinic_id = ? AND patient_phone = ?")
+    .get(body.clinicId, phone) as { id: string; state: string } | undefined;
+
+  // Serverless instances do not share a database, so the demo client carries
+  // the conversation state for the next turn.
+  const resumed = body.state && typeof body.state === "object" ? body.state : null;
+  if (conversation && resumed) {
+    db.prepare("UPDATE conversations SET state = ? WHERE id = ?").run(JSON.stringify(resumed), conversation.id);
+  }
+
   await drain(db);
 
-  const conversation = db
-    .prepare("SELECT id FROM conversations WHERE clinic_id = ? AND patient_phone = ?")
-    .get(body.clinicId, phone) as { id: string } | undefined;
+  const after = db.prepare("SELECT state FROM conversations WHERE id = ?").get(conversation?.id ?? "") as
+    | { state: string }
+    | undefined;
 
   const replies = conversation
     ? (
@@ -45,5 +56,9 @@ export async function POST(request: Request) {
       ).map((row) => row.body)
     : [];
 
-  return NextResponse.json({ replies, duplicate: result.duplicate });
+  return NextResponse.json({
+    replies,
+    duplicate: result.duplicate,
+    state: after ? (JSON.parse(after.state) as unknown) : {},
+  });
 }

@@ -1,15 +1,14 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 const PROMPTS = ["What are your prices?", "Book", "1", "1", "Cancel"];
 
 export default function ChatTester({ clinicId }: { clinicId: string }) {
-  const router = useRouter();
   const [phone, setPhone] = useState("+971500001234");
   const [text, setText] = useState("Hello");
   const [replies, setReplies] = useState<string[]>([]);
+  const [state, setState] = useState<unknown>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -21,12 +20,12 @@ export default function ChatTester({ clinicId }: { clinicId: string }) {
       const response = await fetch("/api/demo/simulate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clinicId, phone, text: message }),
+        body: JSON.stringify({ clinicId, phone, text: message, state }),
       });
-      const data = (await response.json()) as { replies?: string[]; error?: string };
+      const data = (await response.json()) as { replies?: string[]; state?: unknown; error?: string };
       if (!response.ok) throw new Error(data.error ?? "Request failed");
       setReplies(data.replies ?? []);
-      router.refresh();
+      setState(data.state ?? {});
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Request failed");
     } finally {
@@ -46,7 +45,11 @@ export default function ChatTester({ clinicId }: { clinicId: string }) {
         <input
           className="grow"
           value={phone}
-          onChange={(event) => setPhone(event.target.value)}
+          onChange={(event) => {
+            setPhone(event.target.value);
+            setState({});
+            setReplies([]);
+          }}
           aria-label="Patient phone"
         />
         <input
