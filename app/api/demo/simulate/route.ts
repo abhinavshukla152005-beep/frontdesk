@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { cancelPendingReminders } from "@/lib/queue";
 import { ingestInbound } from "@/lib/whatsapp";
 import { drain } from "@/lib/worker";
 
@@ -42,6 +43,18 @@ export async function POST(request: Request) {
   }
 
   await drain(db);
+
+  // A simulator booking must never produce an outbound reminder later, even if
+  // WhatsApp credentials are configured on the host.
+  const demoAppointments = db
+    .prepare(
+      `SELECT a.id FROM appointments a JOIN patients p ON p.id = a.patient_id
+        WHERE a.clinic_id = ? AND p.phone = ? AND a.created_at >= ?`,
+    )
+    .all(body.clinicId, phone, startedAt) as { id: string }[];
+  for (const appointment of demoAppointments) {
+    cancelPendingReminders(db, appointment.id, "demo booking");
+  }
 
   const after = db.prepare("SELECT state FROM conversations WHERE id = ?").get(conversation?.id ?? "") as
     | { state: string }

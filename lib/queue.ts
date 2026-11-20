@@ -73,14 +73,18 @@ export async function processJobs(
   return { processed, failed };
 }
 
-export function cancelPendingReminders(db: Db, appointmentId: string): void {
+export function cancelPendingReminders(
+  db: Db,
+  appointmentId: string,
+  reason = "appointment cancelled",
+): void {
   const rows = db
     .prepare("SELECT id, payload FROM jobs WHERE status = 'pending' AND type = 'reminder'")
     .all() as { id: string; payload: string }[];
   for (const row of rows) {
     const payload = JSON.parse(row.payload) as { appointmentId?: string };
     if (payload.appointmentId === appointmentId) {
-      db.prepare("UPDATE jobs SET status = 'failed', last_error = 'appointment cancelled' WHERE id = ?").run(row.id);
+      db.prepare("UPDATE jobs SET status = 'failed', last_error = ? WHERE id = ?").run(reason, row.id);
     }
   }
 }

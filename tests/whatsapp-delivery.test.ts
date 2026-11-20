@@ -94,4 +94,31 @@ describe("WhatsApp delivery", () => {
     const reply = db.prepare("SELECT body FROM messages WHERE direction = 'out'").get() as { body: string };
     expect(reply.body).toContain("Test Clinic");
   });
+
+  it("delivers a reminder when it becomes due", async () => {
+    configure();
+    const sent = stubGraphApi();
+    const db = createTestDb();
+
+    for (const [index, text] of ["Book", "1", "1"].entries()) {
+      ingestInbound(db, CLINIC_ID, {
+        waMessageId: `rem-${index}`,
+        from: "+971500000111",
+        text,
+        displayPhoneNumber: "",
+      });
+      await drain(db, null);
+    }
+
+    sent.length = 0;
+    db.prepare("UPDATE jobs SET run_at = 0 WHERE type = 'reminder'").run();
+    await drain(db, null);
+
+    // A same-day booking skips the 24h reminder (its time has passed), so only
+    // the 2h one is queued; either form is a reminder and must be delivered.
+    expect(sent.length).toBeGreaterThan(0);
+    expect(
+      sent.some((s) => /^(Reminder:|See you soon:)/.test(s.body.text.body)),
+    ).toBe(true);
+  });
 });

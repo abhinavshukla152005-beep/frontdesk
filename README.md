@@ -35,7 +35,7 @@ job queue.
 | `lib/schema.ts` | Partial unique index that makes double booking impossible at the DB level |
 | `lib/queue.ts`, `lib/worker.ts` | DB-backed jobs with exponential backoff; CRM outbox to HighLevel |
 | `lib/crm/highlevel.ts` | HighLevel API v2 client behind a small interface |
-| `tests/` | 22 Vitest tests: double-booking race, DST/timezone edges, webhook idempotency, Graph API delivery, CRM contract |
+| `tests/` | 23 Vitest tests: double-booking race, DST/timezone edges, webhook idempotency, Graph API delivery, CRM contract |
 
 ![Home](docs/home.png)
 
@@ -62,7 +62,7 @@ Replies are written to the local ledger by the agent, then delivered by a queued
 `whatsapp_send` job calling the Graph API (`POST /{phone-number-id}/messages`). Delivery is
 a separate job from the agent run, so a failed send retries with backoff instead of
 re-running the assistant and duplicating replies. Demo-origin jobs are tagged
-`source: "demo"` and are never sent.
+`source: "demo"` and are never sent, and demo bookings do not schedule reminder sends.
 
 To send real messages you need a Meta WhatsApp Business account:
 
@@ -96,6 +96,8 @@ POST /api/webhooks/whatsapp
   worker: agent answers, books, schedules reminders
         |
         +--> reminder jobs (24h / 2h before the appointment)
+        |
+        +--> whatsapp_send jobs --> Graph API (WhatsApp)
         |
         +--> CRM outbox jobs --> HighLevel API v2
                                   POST /contacts/upsert
@@ -200,7 +202,7 @@ Covered:
 
 ### Verification
 
-`npm test` (22 tests), `tsc --noEmit`, and a local end-to-end run through
+`npm test` (23 tests), `tsc --noEmit`, and a local end-to-end run through
 `/api/demo/simulate` are green. The HighLevel client is tested against a local stub server
 that asserts request shape, and the full app has been run against `tools/ghl-emulator.mjs`
 (contacts and appointments receive external ids). Outbound WhatsApp delivery is tested
