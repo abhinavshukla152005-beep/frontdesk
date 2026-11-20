@@ -2,7 +2,8 @@ import { handleInbound, sendReminder } from "./agent";
 import type { Db } from "./db";
 import { getCrm } from "./crm";
 import type { CrmClient } from "./crm/types";
-import { processJobs } from "./queue";
+import { enqueue, processJobs } from "./queue";
+import { isWhatsAppConfigured, sendText } from "./whatsapp";
 
 type ContactRow = {
   id: string;
@@ -32,20 +33,44 @@ export async function processDue(db: Db, now = Date.now(), crm: CrmClient | null
     db,
     {
       inbound_message: (payload) => {
-        handleInbound(db, {
+        const replies = handleInbound(db, {
           clinicId: String(payload.clinicId),
           phone: String(payload.phone),
           text: String(payload.text),
           now,
         });
+        // Delivery is its own job so a failed send retries without re-running the
+        // assistant (which would write duplicate replies and re-book).
+        for (const body of replies) {
+          enqueue(db, {
+            type: "whatsapp_send",
+            payload: {
+              to: String(payload.phone),
+              body,
+              source: payload.source === "demo" ? "demo" : "webhook",
+            },
+          });
+        }
+      },
+
+      whatsapp_send: async (payload) => {
+        if (payload.source === "demo") return;
+        const ok = await sendText(String(payload.to), String(payload.body));
+        if (!ok && isWhatsAppConfigured()) throw new Error("whatsapp_send_failed");
       },
 
       reminder: (payload) => {
-        sendReminder(
+        const message = sendReminder(
           db,
           { appointmentId: String(payload.appointmentId), kind: payload.kind === "2h" ? "2h" : "24h" },
           now,
         );
+        if (message) {
+          enqueue(db, {
+            type: "whatsapp_send",
+            payload: { to: message.to, body: message.body, source: "webhook" },
+          });
+        }
       },
 
       crm_contact: async (payload) => {

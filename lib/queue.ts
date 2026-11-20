@@ -1,7 +1,13 @@
 import { randomUUID } from "node:crypto";
 import type { Db } from "./db";
 
-export type JobType = "inbound_message" | "reminder" | "crm_contact" | "crm_appointment" | "crm_cancel";
+export type JobType =
+  | "inbound_message"
+  | "whatsapp_send"
+  | "reminder"
+  | "crm_contact"
+  | "crm_appointment"
+  | "crm_cancel";
 
 export function enqueue(
   db: Db,

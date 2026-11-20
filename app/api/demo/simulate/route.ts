@@ -27,6 +27,7 @@ export async function POST(request: Request) {
     body.clinicId,
     { waMessageId: `sim-${randomUUID()}`, from: phone, text: body.text, displayPhoneNumber: "" },
     startedAt,
+    "demo",
   );
 
   const conversation = db

@@ -79,6 +79,7 @@ export function ingestInbound(
   clinicId: string,
   message: IncomingMessage,
   now = Date.now(),
+  source: "webhook" | "demo" = "webhook",
 ): IngestResult {
   const existing = db
     .prepare("SELECT id FROM messages WHERE wa_message_id = ?")
@@ -120,7 +121,7 @@ export function ingestInbound(
   db.prepare("UPDATE conversations SET last_message_at = ? WHERE id = ?").run(now, conversation.id);
   enqueue(db, {
     type: "inbound_message",
-    payload: { clinicId, phone: message.from, text: message.text },
+    payload: { clinicId, phone: message.from, text: message.text, source },
   });
   if (patient && !patient.externalId) {
     enqueue(db, { type: "crm_contact", payload: { patientId: patient.id } });
@@ -129,20 +130,30 @@ export function ingestInbound(
   return { duplicate: false, conversationId: conversation.id };
 }
 
+export function isWhatsAppConfigured(): boolean {
+  return Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID);
+}
+
+/** The Graph API expects the recipient as country code + number, digits only. */
 export async function sendText(to: string, text: string): Promise<boolean> {
   const token = process.env.WHATSAPP_ACCESS_TOKEN;
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  if (!token || !phoneNumberId) return false;
+  const recipient = digits(to);
+  if (!token || !phoneNumberId || !recipient) return false;
 
-  const response = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      to,
-      type: "text",
-      text: { body: text },
-    }),
-  });
-  return response.ok;
+  try {
+    const response = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: recipient,
+        type: "text",
+        text: { body: text },
+      }),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }

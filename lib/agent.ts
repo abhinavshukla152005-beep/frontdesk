@@ -191,7 +191,7 @@ export function sendReminder(
   db: Db,
   payload: { appointmentId: string; kind: "24h" | "2h" },
   now = Date.now(),
-): void {
+): { to: string; body: string } | null {
   const row = db
     .prepare(
       `SELECT a.starts_at AS startMs, a.status, s.name AS serviceName, c.name AS clinicName,
@@ -216,11 +216,12 @@ export function sendReminder(
       }
     | undefined;
 
-  if (!row || row.status !== "booked") return;
+  if (!row || row.status !== "booked") return null;
   const label = formatDateTime(row.startMs, row.timezone);
   const body =
     payload.kind === "24h"
       ? `Reminder: your ${row.serviceName} at ${row.clinicName} is on ${label}. Reply CANCEL if you need to change it.`
       : `See you soon: your ${row.serviceName} at ${row.clinicName} is today at ${formatDateTime(row.startMs, row.timezone)}.`;
   outbound(db, row.clinicId, row.conversationId, body, now);
+  return { to: row.phone, body };
 }
