@@ -11,6 +11,29 @@ response-time metric in one dashboard.
 Status: early build (v0.1). The WhatsApp and HighLevel integrations are implemented and
 covered by tests; neither has been run against live credentials yet (see "Verification").
 
+## Live demo
+
+- App: <https://frontdesk-abhinav-shukla1.vercel.app>
+- Source: <https://github.com/abhinavshukla152005-beep/frontdesk>
+
+Open a clinic from the home page, then use the "Try the assistant" box: send `Hello`,
+`Book`, `1`, `1`. That is the same ingest path the WhatsApp webhook uses.
+
+![Home](docs/home.png)
+
+![Clinic dashboard](docs/clinic.png)
+
+![HighLevel sync](docs/highlevel-sync.png)
+
+The third screenshot is from a local run against the HighLevel emulator
+(`npm run ghl:mock`): the appointment carries the external id returned by the CRM, which
+the dashboard shows in the HighLevel column.
+
+The hosted demo is a free Vercel deployment, so each serverless instance has its own
+ephemeral SQLite file. The chat works because the browser carries the conversation state
+between turns, but the dashboard tables may show a different instance's data than the chat
+just wrote. For the full data flow, including HighLevel sync, run it locally as below.
+
 ## Architecture
 
 ```
@@ -105,9 +128,9 @@ HighLevel has no free plan and the trial requires a card. Nothing here needs one
    external id in the HighLevel column. Inspect the emulator state at
    `http://127.0.0.1:4010/__state`.
 
-3. **Live demo hosting**: deploy to a free tier with `DB_PATH=/tmp/frontdesk.db`. The
-   database resets on cold start and reseeds itself, which is acceptable for a portfolio
-   demo; move to Postgres before storing real data.
+3. **Live demo hosting**: deployed on Vercel's free tier, which falls back to
+   `DB_PATH=/tmp/frontdesk.db`. The database resets on cold start and reseeds itself, which
+   is acceptable for a portfolio demo; move to Postgres before storing real data.
 
 The emulator is our code, not HighLevel. It proves the request path and the sync logic; it
 does not prove live auth, scopes or real response shapes. When a card exists, set
@@ -132,12 +155,14 @@ Covered:
 
 ### Verification
 
-`npm test` (18 tests), `tsc --noEmit`, and a local end-to-end run through
+`npm test` (19 tests), `tsc --noEmit`, and a local end-to-end run through
 `/api/demo/simulate` are green. The HighLevel client is tested against a local stub server
 that asserts request shape, and the full app has been run against `tools/ghl-emulator.mjs`
-(contacts and appointments receive external ids). Neither has been exercised against a live
-HighLevel account or the live WhatsApp Cloud API. Treat those two as "integrated, unproven
-in production" until a test account confirms them.
+(contacts and appointments receive external ids). The same booking flow was run against the
+hosted demo to confirm it survives requests landing on different serverless instances.
+Neither integration has been exercised against a live HighLevel account or the live WhatsApp
+Cloud API. Treat those two as "integrated, unproven in production" until a test account
+confirms them.
 
 ## Production notes
 
