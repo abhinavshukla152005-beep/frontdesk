@@ -129,7 +129,7 @@ export function handleInbound(db: Db, input: AgentInput): string[] {
         state = {};
         replies = [
           `Booked: ${service?.name ?? "appointment"} on ${formatDateTime(slot.startMs, tz)} at ${clinic.name}. ` +
-            `We will send a reminder 24 hours before. Reply CANCEL to cancel.`,
+            `We will send a reminder before your visit. Reply CANCEL to cancel.`,
         ];
       } else {
         const fresh = findSlots(db, { clinicId: clinic.id, serviceId, fromMs: now });
