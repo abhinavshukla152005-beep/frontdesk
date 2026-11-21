@@ -1,0 +1,82 @@
+{
+  "brand": "Aurora Dental Studio Assistant",
+  "networks": [
+    {
+      "name": "frontdesk_clinic",
+      "front_man": "frontdesk_assistant",
+      "hocon": "./frontdesk_clinic.network.json",
+      "description": "Ask about services and prices, check the demo diary, and book, look up or cancel an appointment.",
+      "tags": [
+        "agentified-website"
+      ],
+      "sample_queries": [
+        "What does a teeth cleaning cost, and how long does it take?",
+        "What times are free for a consultation tomorrow?",
+        "Book a teeth cleaning for me: Ana Silva, +971 50 123 4567, at any free time tomorrow.",
+        "Cancel booking FD-7X1M under Omar Haddad and tell me the fee.",
+        "Fill in the booking form for a whitening on Saturday afternoon, and I will add my details.",
+        "Can I pay online or claim this on my insurance?"
+      ]
+    }
+  ],
+  "llm_router": {
+    "base_url": "https://api.otari.ai/api/v1",
+    "mock": false,
+    "byok_router": "https://api.otari.ai/api/v1"
+  },
+  "allowed_peers": [],
+  "peer_policy": {
+    "mode": "closed",
+    "deny_origins": [],
+    "note": "Local agents and page-local actions only."
+  },
+  "agent_mcp": {
+    "protocol": "nsdeploy-agent-mcp/v1",
+    "network": "frontdesk_clinic",
+    "front_man": "frontdesk_assistant",
+    "available": false,
+    "reason": "This is a static bundle; a public MCP facade requires an application host."
+  },
+  "theme": {
+    "primary": "#0f766e"
+  },
+  "linking": {
+    "protocol": "nsdeploy-link/v1",
+    "exports": [
+      {
+        "network": "frontdesk_clinic",
+        "front_man": "frontdesk_assistant",
+        "aliases": [
+          "frontdesk_clinic",
+          "frontdesk_assistant"
+        ],
+        "url": "frontdesk_clinic"
+      }
+    ],
+    "imports": [],
+    "link_updates": {
+      "mode": "browser-local"
+    }
+  },
+  "deployment": {
+    "mode": "static",
+    "self_contained_runtime": true,
+    "browser_mock": false,
+    "direct_byok": true,
+    "direct_mcp_requires_cors": true,
+    "public_mcp_facade": false
+  },
+  "actions": {
+    "version": 1,
+    "module": "./site-actions.js",
+    "bridge": "./bridge/action-bridge.html",
+    "agentTools": [
+      "get_clinic_state",
+      "check_availability",
+      "fill_booking_form",
+      "book_appointment",
+      "look_up_booking",
+      "cancel_appointment"
+    ]
+  }
+}

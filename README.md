@@ -56,6 +56,20 @@ The phone box on the demo is just a conversation key. **Typing a real number the
 not send anything to WhatsApp** — the demo renders the assistant's replies in the page. See
 "WhatsApp delivery" for what real sending requires.
 
+## Agentic web entry
+
+`agentic/` is a second, independent demo for the
+[Worldwide Agentic Web MVP profile](https://github.com/cognizant-ai-labs/agentic-web):
+the same clinic as a static page whose assistant runs in the visitor's browser, on the
+visitor's model key, and calls the page's own booking code through six registered site
+actions. The agent network is published as open JSON, so another agent site can run it.
+
+- Site: <https://frontdesk-agentic.vercel.app>
+- Network URL: <https://frontdesk-agentic.vercel.app/frontdesk_clinic>
+- Code and notes: [`agentic/README.md`](agentic/README.md)
+
+![Agentic clinic page](docs/agentic.png)
+
 ## WhatsApp delivery
 
 Replies are written to the local ledger by the agent, then delivered by a queued

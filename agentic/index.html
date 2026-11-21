@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aurora Dental Studio — book an appointment</title>
+  <meta name="description" content="A demo dental clinic page with a browser-run assistant that reads the real diary, books and cancels appointments, and publishes its agent network.">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+  <script type="module" src="site.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <p class="brand">Aurora Dental Studio</p>
+    <nav aria-label="Sections">
+      <a href="#services">Services</a>
+      <a href="#availability">Availability</a>
+      <a href="#book">Book</a>
+      <a href="#manage">My booking</a>
+      <a href="#policies">Policies</a>
+      <a href="#assistant">Ask</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>A dental appointment in Jumeirah, booked in under a minute.</h1>
+      <p class="lede">
+        Browse the services, check the real diary and book a slot — or ask the assistant
+        in the last section to do it for you. The assistant runs in your browser and calls
+        the same booking code as the forms on this page.
+      </p>
+      <dl class="facts">
+        <div><dt>Address</dt><dd id="clinic-address"></dd></div>
+        <div><dt>Phone</dt><dd id="clinic-phone"></dd></div>
+        <div><dt>Hours</dt><dd id="clinic-hours"></dd></div>
+        <div><dt>Dentist</dt><dd id="clinic-practitioner"></dd></div>
+      </dl>
+      <p class="demo-banner">
+        Demo clinic. Bookings stay in this browser tab, nothing is sent to a clinic, and the
+        production front desk for this workflow is the
+        <a href="https://github.com/abhinavshukla152005-beep/frontdesk">Frontdesk</a> project.
+      </p>
+    </section>
+
+    <section id="services">
+      <h2>Services</h2>
+      <p>Prices are in AED and paid at the clinic.</p>
+      <div id="service-cards" class="cards"></div>
+    </section>
+
+    <section id="availability">
+      <h2>Check availability</h2>
+      <p>The diary is open for the next 14 days. Friday is closed.</p>
+      <form class="panel" id="search-form">
+        <label for="search-service">Service</label>
+        <select id="search-service" name="service"></select>
+        <label for="search-date">Date</label>
+        <input type="date" id="search-date" name="date">
+        <button type="button" id="search-submit">Search free times</button>
+      </form>
+      <div id="search-result" class="result" role="status" aria-live="polite"></div>
+    </section>
+
+    <section id="book">
+      <h2>Book an appointment</h2>
+      <form class="panel" id="book-form">
+        <label for="book-service">Service</label>
+        <select id="book-service" name="service"></select>
+        <label for="book-date">Date</label>
+        <input type="date" id="book-date" name="date">
+        <label for="book-time">Time</label>
+        <select id="book-time" name="time"></select>
+        <label for="book-name">Full name</label>
+        <input type="text" id="book-name" name="name" maxlength="80" autocomplete="name">
+        <label for="book-phone">Phone</label>
+        <input type="text" id="book-phone" name="phone" maxlength="20" autocomplete="tel">
+        <label for="book-notes">Anything we should know? (optional)</label>
+        <textarea id="book-notes" name="notes" maxlength="300" rows="3"></textarea>
+        <button type="button" id="book-submit">Book appointment</button>
+      </form>
+      <div id="book-result" class="result" role="status" aria-live="polite"></div>
+    </section>
+
+    <section id="manage">
+      <h2>My booking</h2>
+      <p>Use the code from your booking and the name you booked with.</p>
+      <form class="panel" id="manage-form">
+        <label for="manage-code">Booking code</label>
+        <input type="text" id="manage-code" name="code" maxlength="10" placeholder="FD-4K2Q">
+        <label for="manage-name">Name</label>
+        <input type="text" id="manage-name" name="name" maxlength="80">
+        <button type="button" id="manage-submit">Look up booking</button>
+      </form>
+      <p class="hint">To try this without booking, use code <strong>FD-4K2Q</strong> and name <strong>Nadia Farouk</strong>.</p>
+      <div id="manage-result" class="result" role="status" aria-live="polite"></div>
+    </section>
+
+    <section id="policies">
+      <h2>Policies</h2>
+      <div class="cards">
+        <article class="card">
+          <h3>Changes and cancellation</h3>
+          <p id="policy-cancellation"></p>
+        </article>
+        <article class="card">
+          <h3>Payment</h3>
+          <p id="policy-payment"></p>
+        </article>
+        <article class="card">
+          <h3>Reminders</h3>
+          <p id="policy-reminders"></p>
+        </article>
+        <article class="card">
+          <h3>This page</h3>
+          <p id="policy-records"></p>
+        </article>
+      </div>
+    </section>
+
+    <section id="assistant" class="assistant" aria-labelledby="assistant-heading">
+      <h2 id="assistant-heading">Ask Aurora Dental Studio</h2>
+      <p>Ask what is free, book a slot, or look up and cancel the booking you just made.</p>
+      <p class="assistant-note">Your messages and this page's data go to the LLM provider you choose in the settings below. You confirm anything that cannot be undone before it happens.</p>
+      <p id="assistant-status" role="status">Connecting the assistant… If this message stays, the assistant could not load. You can still use the page directly.</p>
+      <div id="agent-app">
+        <div data-ns-slot="header"></div>
+        <div class="assistant-panels">
+          <div data-ns-slot="chat"></div>
+          <div data-ns-slot="agents"></div>
+        </div>
+        <div data-ns-slot="settings"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>
+      Demo page for the Agentic Web MVP profile. The assistant's network is public at
+      <code>agent-manifest.json</code> and <code>frontdesk_clinic.network.json</code>.
+      The production workflow lives in
+      <a href="https://github.com/abhinavshukla152005-beep/frontdesk">Frontdesk</a>.
+    </p>
+  </footer>
+</body>
+</html>

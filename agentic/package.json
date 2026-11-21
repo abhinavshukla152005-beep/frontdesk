@@ -1,0 +1,12 @@
+{
+  "name": "frontdesk-agentic-clinic",
+  "private": true,
+  "type": "module",
+  "description": "Static agentified clinic page for the Worldwide Agentic Web MVP profile.",
+  "scripts": {
+    "build": "node tools/agentify/scripts/build_network.mjs frontdesk_clinic.hocon --manifest agent-manifest.json",
+    "check": "node tools/agentify/scripts/build_network.mjs frontdesk_clinic.hocon --manifest agent-manifest.json --check",
+    "test": "node --test \"tests/*.test.mjs\"",
+    "serve": "node tools/agentify/scripts/serve_site.mjs . --port 8090"
+  }
+}

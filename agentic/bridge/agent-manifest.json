@@ -1,0 +1,10 @@
+{
+  "networks": [
+    {
+      "name": "frontdesk_clinic"
+    }
+  ],
+  "actions": {
+    "version": 1
+  }
+}

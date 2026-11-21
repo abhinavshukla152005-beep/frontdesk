@@ -1,0 +1,18 @@
+{
+  "protocol": "nsdeploy-link/v1",
+  "exports": [
+    {
+      "network": "frontdesk_clinic",
+      "front_man": "frontdesk_assistant",
+      "aliases": [
+        "frontdesk_clinic",
+        "frontdesk_assistant"
+      ],
+      "url": "frontdesk_clinic"
+    }
+  ],
+  "imports": [],
+  "link_updates": {
+    "mode": "browser-local"
+  }
+}
